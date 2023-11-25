@@ -9,9 +9,7 @@ import pascal.taie.language.classes.JMethod;
 import pascal.taie.language.type.Type;
 
 class BaseVar{
-	public Var v;
 	public Integer type;
-	public Integer hash;
 	//public isptr = 0;
 	//public isfield = 1;
 	//public ismethod = 2;
@@ -19,21 +17,13 @@ class BaseVar{
 	//public isstaticmethod = 4;
 	BaseVar(Integer t){
 		type = t;
-		hash = (int)(Math.random() * 10000);
 	}
-
-	BaseVar(Var a, Integer t) {
-		v = a;
-		type = t;
-		hash = (int)(Math.random() * 10000);
-	};
 
 	@Override 
 	public boolean equals(Object obj) {
 		if (obj instanceof BaseVar){
 			if (((BaseVar)obj).type == type) {
-				if (type > 2) return true;
-				if (((BaseVar)obj).v == v) return true;
+				return true;
 			}
 		}
 		return false;
@@ -45,28 +35,32 @@ class BaseVar{
 }
 
 class PtrVar extends BaseVar{
-	//Type ty;
+	public Var v;
 
 	PtrVar(Var a) {
-		super(a, 0);
+		super(0);
+		v = a;
 	};
-
-	/*PtrVar(Var a, Type x) {
-		super(a, 0);
-		ty = x;
-	};*/
 
 	@Override
 	public String toString(){
 		return v.toString();
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if(super.equals(obj)){
+			if (((PtrVar)obj).v == v) return true;
+		}
+		return false;
+	} 
 }
 
 class FieldRefVar extends BaseVar{
 	public JField field;
 	public Integer o;
-	FieldRefVar(Var a, JField f, Integer i) {
-		super(a, 1);
+	FieldRefVar(JField f, Integer i) {
+		super(1);
 		field = f;
 		o = i;
 	};
@@ -82,18 +76,16 @@ class FieldRefVar extends BaseVar{
 
 	@Override
 	public String toString(){
-		return v.toString() + ':' + o.toString() + '.' + field.toString();
+		return o.toString() + '.' + field.toString();
 	}
 }
 
 class MethodRefVar extends BaseVar{
 	public JMethod method;
-	public Integer o;
 	public Integer line;
-	MethodRefVar(Var a, JMethod m, Integer i, Integer l) {
-		super(a, 2);
+	MethodRefVar(JMethod m, Integer l) {
+		super(2);
 		method = m;
-		o = i;
 		line = l;
 	};
 
@@ -101,7 +93,6 @@ class MethodRefVar extends BaseVar{
 	public boolean equals(Object obj) {
 		if(super.equals(obj)){
 			if (((MethodRefVar)obj).method == method &&
-				((MethodRefVar)obj).o == o &&
 				((MethodRefVar)obj).line == line) return true;
 		}
 		return false;
@@ -109,7 +100,7 @@ class MethodRefVar extends BaseVar{
 
 	@Override
 	public String toString(){
-		return v.toString() + ':' + o.toString() + '.' + method.toString();
+		return line + " -> " + method.toString();
 	}
 }
 

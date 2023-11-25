@@ -29,6 +29,7 @@ import pascal.taie.language.classes.JMethod;
 import pascal.taie.language.classes.Subsignature;
 import pascal.taie.language.type.Type;
 import pascal.taie.util.AnalysisException;
+import soot.coffi.field_info;
 
 
 public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResult> {
@@ -76,6 +77,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
             for (BaseVar n : preprocess.WL.keySet())
             {
                 // delta = pts - pt(n)
+                logger.info("Processing: {}", n);
                 Set<Integer> delta = new HashSet<Integer>();
                 delta.addAll(preprocess.WL.get(n));
                 if (!preprocess.PT.containsKey(n)){
@@ -90,13 +92,14 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                     for (Integer obj : delta)
                     {
                         Var x = ((PtrVar)n).v;
+                        logger.info("Processing obj: {}", obj);
                         x.getStoreFields().forEach(stmt->{ //x.f = y
                             logger.info("Stmt: {}", stmt);
                             if (preprocess.S.contains(stmt)){
                                 logger.info("Contains.");
                                 JField field = stmt.getFieldRef().resolve();
                                 PtrVar right = new PtrVar(stmt.getRValue());
-                                FieldRefVar fieldvar = new FieldRefVar(x, field, obj);
+                                FieldRefVar fieldvar = new FieldRefVar(field, obj);
                                 preprocess.AddEdge(right, fieldvar);
                             }
                         });
@@ -106,7 +109,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                                 logger.info("Contains.");
                                 JField field = stmt.getFieldRef().resolve();
                                 PtrVar left = new PtrVar(stmt.getLValue());
-                                FieldRefVar fieldvar = new FieldRefVar(x, field, obj);
+                                FieldRefVar fieldvar = new FieldRefVar(field, obj);
                                 preprocess.AddEdge(fieldvar, left);
                             }
                         });
@@ -153,13 +156,13 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
         }
     }
 
-    protected void ProcessCall(PreprocessResult preprocess, BaseVar n, Integer obj)
+    protected void ProcessCall(PreprocessResult preprocess, PtrVar n, Integer obj)
     {
         Var x = n.v;
         x.getInvokes().forEach(stmt->{
-            //JMethod Mthis = stmt.getInvokeExp().getMethodRef().getClass().get
             JMethod M = preprocess.resolveCallee(preprocess.OBJ.get(obj), stmt);
             Var Mthis = M.getIR().getThis();
+            PtrVar mthis = new PtrVar(Mthis);
             /*if (Mthis == M){
                 logger.info("warning!");
             }*/
@@ -169,16 +172,27 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                 logger.info("M: {}", M);
                 logger.info("Var: {}, Integ: {}", n, obj);
             //}
-            MethodRefVar m = new MethodRefVar(x, M, obj, stmt.getLineNumber());
-            PtrVar mthis = new PtrVar(Mthis);
+            MethodRefVar m = new MethodRefVar(M, stmt.getLineNumber());
+            
             if (!preprocess.WL.containsKey(mthis)){
                 preprocess.WL.put(mthis, new HashSet<Integer>());
             }
             preprocess.WL.get(mthis).add(obj);
+            logger.info("mthis: {}", mthis);
 
-            if (!preprocess.CG.contains(m)){
+            /*//Testing
+            Mthis.getStoreFields().forEach(fieldstmt->{
+                FieldRefVar thisfield = new FieldRefVar(
+                                        fieldstmt.getFieldRef().resolve(), obj);
+                FieldRefVar stmtfield = new FieldRefVar(
+                                        fieldstmt.getFieldRef().resolve(), obj);
+                preprocess.AddEdge(thisfield, stmtfield);
+            });*/
+
+            if (!preprocess.CG.contains(m)) {
                 logger.info("Process call. Stmt: {}", stmt);
                 preprocess.CG.add(m);
+                preprocess.Debug(logger);
                 AddReachable(preprocess, M);
 
                 List<Var> a = stmt.getInvokeExp().getArgs();
@@ -187,15 +201,25 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                 logger.info("Param size: {}", length);
 
                 for(int i=0; i<length; i++){
-                    PtrVar aptr = new PtrVar(a.get(i));
-                    PtrVar pptr = new PtrVar(p.get(i));
+                    Var ai = a.get(i);
+                    Var pi = p.get(i);
+                    PtrVar aptr = new PtrVar(ai);
+                    PtrVar pptr = new PtrVar(pi);
                     logger.info("Param from a: {}", aptr);
                     logger.info("Param from p: {}", pptr);
                     preprocess.AddEdge(aptr, pptr);
+
+                    /*pi.getStoreFields().forEach(fieldstmt->{
+                        FieldRefVar thisfield = new FieldRefVar(
+                                                fieldstmt.getFieldRef().resolve(), obj);
+                        FieldRefVar stmtfield = new FieldRefVar(
+                                                fieldstmt.getFieldRef().resolve(), obj);
+                        preprocess.AddEdge(thisfield, stmtfield);
+                    });*/
                 }
 
                 Var r = stmt.getLValue();
-                if (r != null){
+                if (r != null) {
                     M.getIR().getReturnVars().forEach(mret->{
                         PtrVar rptr = new PtrVar(r);
                         PtrVar mretptr = new PtrVar(mret);
