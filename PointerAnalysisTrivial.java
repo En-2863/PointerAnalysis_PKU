@@ -91,7 +91,9 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                     {
                         Var x = ((PtrVar)n).v;
                         x.getStoreFields().forEach(stmt->{ //x.f = y
+                            logger.info("Stmt: {}", stmt);
                             if (preprocess.S.contains(stmt)){
+                                logger.info("Contains.");
                                 JField field = stmt.getFieldRef().resolve();
                                 PtrVar right = new PtrVar(stmt.getRValue());
                                 FieldRefVar fieldvar = new FieldRefVar(x, field, obj);
@@ -99,7 +101,9 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                             }
                         });
                         x.getLoadFields().forEach(stmt->{ //y = x.f
+                            logger.info("Stmt: {}", stmt);
                             if (preprocess.S.contains(stmt)){
+                                logger.info("Contains.");
                                 JField field = stmt.getFieldRef().resolve();
                                 PtrVar left = new PtrVar(stmt.getLValue());
                                 FieldRefVar fieldvar = new FieldRefVar(x, field, obj);
@@ -113,6 +117,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
             }
         }
 
+        preprocess.Debug(logger);
         preprocess.test_pts.forEach((test_id, pt)->{
             PtrVar ptptr = new PtrVar(pt);
             result.put(test_id, new TreeSet<Integer>());
@@ -152,34 +157,40 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
     {
         Var x = n.v;
         x.getInvokes().forEach(stmt->{
-            JMethod Mthis = stmt.getMethodRef().resolve();
-            JMethod M = preprocess.resolveCallee(((PtrVar)n).ty, stmt);
-            logger.info("Type: {}", ((PtrVar)n).ty);
-            logger.info("Mthis: {}", Mthis);
-            logger.info("M: {}", M);
-            logger.info("Var: {}, Integ: {}", n, obj);
-            //Is M == Mthis? Hope not.
+            //JMethod Mthis = stmt.getInvokeExp().getMethodRef().getClass().get
+            JMethod M = preprocess.resolveCallee(preprocess.OBJ.get(obj), stmt);
+            Var Mthis = M.getIR().getThis();
             /*if (Mthis == M){
-                logger.info("Wrong!");
+                logger.info("warning!");
             }*/
+            //if (stmt.isVirtual()){
+                logger.info("Type: {}", (preprocess.OBJ.get(obj)));
+                logger.info("Mthis: {}", Mthis);
+                logger.info("M: {}", M);
+                logger.info("Var: {}, Integ: {}", n, obj);
+            //}
             MethodRefVar m = new MethodRefVar(x, M, obj, stmt.getLineNumber());
-            MethodRefVar mthis = new MethodRefVar(x, Mthis, obj, 0);
+            PtrVar mthis = new PtrVar(Mthis);
             if (!preprocess.WL.containsKey(mthis)){
                 preprocess.WL.put(mthis, new HashSet<Integer>());
             }
             preprocess.WL.get(mthis).add(obj);
 
             if (!preprocess.CG.contains(m)){
+                logger.info("Process call. Stmt: {}", stmt);
                 preprocess.CG.add(m);
                 AddReachable(preprocess, M);
 
-                List<Var> a = Mthis.getIR().getParams();
+                List<Var> a = stmt.getInvokeExp().getArgs();
                 List<Var> p = M.getIR().getParams();
                 Integer length = a.size();
+                logger.info("Param size: {}", length);
 
                 for(int i=0; i<length; i++){
                     PtrVar aptr = new PtrVar(a.get(i));
                     PtrVar pptr = new PtrVar(p.get(i));
+                    logger.info("Param from a: {}", aptr);
+                    logger.info("Param from p: {}", pptr);
                     preprocess.AddEdge(aptr, pptr);
                 }
 
@@ -192,6 +203,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                     });
                 }
             }
+            //if (stmt.isVirtual()) 
             preprocess.Debug(logger);
         });
     }

@@ -45,16 +45,16 @@ class BaseVar{
 }
 
 class PtrVar extends BaseVar{
-	Type ty;
+	//Type ty;
 
 	PtrVar(Var a) {
 		super(a, 0);
 	};
 
-	PtrVar(Var a, Type x) {
+	/*PtrVar(Var a, Type x) {
 		super(a, 0);
 		ty = x;
-	};
+	};*/
 
 	@Override
 	public String toString(){
@@ -82,7 +82,7 @@ class FieldRefVar extends BaseVar{
 
 	@Override
 	public String toString(){
-		return v.toString() + o.toString() + '.' + field.toString();
+		return v.toString() + ':' + o.toString() + '.' + field.toString();
 	}
 }
 
@@ -109,7 +109,7 @@ class MethodRefVar extends BaseVar{
 
 	@Override
 	public String toString(){
-		return v.toString() + o.toString() + '.' + method.toString();
+		return v.toString() + ':' + o.toString() + '.' + method.toString();
 	}
 }
 

@@ -42,6 +42,7 @@ public class PreprocessResult {
     public final Set<BaseVar> CG;
     public final Map<BaseVar, Set<Integer>> WL;
     public final Map<BaseVar, Set<Integer>> PT;
+    public final Map<Integer, Type> OBJ;
     public final Set<JMethod> RM;
     public final Set<Stmt> S;
 
@@ -57,6 +58,7 @@ public class PreprocessResult {
         CG = new HashSet<BaseVar>();
         WL = new HashMap<BaseVar, Set<Integer>>();
         PT = new HashMap<BaseVar, Set<Integer>>();
+        OBJ = new HashMap<Integer, Type>();
         RM = new HashSet<JMethod>();
         S = new HashSet<Stmt>();
     }
@@ -152,7 +154,8 @@ public class PreprocessResult {
                     this.alloc((New)stmt, id);
 
                     LValue Left = stmt.getDef().get();
-                    PtrVar lbase = new PtrVar((Var)Left, ((New)stmt).getRValue().getType());
+                    PtrVar lbase = new PtrVar((Var)Left);
+                    OBJ.put(id, ((New)stmt).getRValue().getType()); // Very Important
                     if (!WL.containsKey(lbase)){
                         WL.put(lbase, new HashSet<Integer>());
                     }
@@ -181,6 +184,7 @@ public class PreprocessResult {
                     JField RIghtField = Right.resolve();
                     StaticFieldRefVar RightVar = new StaticFieldRefVar(RIghtField, RightClass);
                     PtrVar LeftVar = new PtrVar(((LoadField)stmt).getLValue());
+                    logger.info("LoadField: {} = {}", LeftVar, RightVar);
                     AddEdge(RightVar, LeftVar);
                 }
             }
@@ -192,6 +196,7 @@ public class PreprocessResult {
                     JField LeftField = Left.resolve();
                     StaticFieldRefVar LeftVar = new StaticFieldRefVar(LeftField, LeftClass);
                     PtrVar RightVar = new PtrVar(((StoreField)stmt).getRValue());
+                    logger.info("StoreField: {} = {}", LeftVar, RightVar);
                     AddEdge(RightVar, LeftVar);
                 }
             }
@@ -256,5 +261,6 @@ public class PreprocessResult {
                 logger.info("Success Node: {}", x2);
             });
         });
+        logger.info("=======================");
     }
 }
