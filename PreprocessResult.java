@@ -152,18 +152,20 @@ public class PreprocessResult {
             {
                 if(id!=0){ // ignore unlabeled `new` stmts
                     this.alloc((New)stmt, id);
-
-                    LValue Left = stmt.getDef().get();
-                    PtrVar lbase = new PtrVar((Var)Left);
                     OBJ.put(id, ((New)stmt).getRValue().getType()); // Very Important
-                    if (!WL.containsKey(lbase)){
-                        WL.put(lbase, new HashSet<Integer>());
-                    }
-                    WL.get(lbase).add(id);
-
+                    
                     Newcnt++;
                 }
 
+                LValue Left = stmt.getDef().get();
+                
+                if (Left instanceof Var){
+                    PtrVar lbase = new PtrVar((Var)Left);
+                    if (!WL.containsKey(lbase)) {
+                        WL.put(lbase, new HashSet<Integer>());
+                    }
+                    WL.get(lbase).add(id);
+                }
             }
             else if(stmt instanceof Copy)
             {

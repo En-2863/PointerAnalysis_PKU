@@ -29,7 +29,6 @@ import pascal.taie.language.classes.JMethod;
 import pascal.taie.language.classes.Subsignature;
 import pascal.taie.language.type.Type;
 import pascal.taie.util.AnalysisException;
-import soot.coffi.field_info;
 
 
 public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResult> {
@@ -120,12 +119,12 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
             }
         }
 
-        preprocess.Debug(logger);
+        //preprocess.Debug(logger);
         preprocess.test_pts.forEach((test_id, pt)->{
             PtrVar ptptr = new PtrVar(pt);
             result.put(test_id, new TreeSet<Integer>());
             preprocess.PT.get(ptptr).forEach(i->{
-                result.get(test_id).add(i);
+                if (preprocess.obj_ids.values().contains(i)) result.get(test_id).add(i);
             });
         });
 
@@ -160,7 +159,8 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
     {
         Var x = n.v;
         x.getInvokes().forEach(stmt->{
-            JMethod M = preprocess.resolveCallee(preprocess.OBJ.get(obj), stmt);
+            //JMethod M = preprocess.resolveCallee(preprocess.OBJ.get(obj), stmt);
+            JMethod M = stmt.getMethodRef().resolve();
             Var Mthis = M.getIR().getThis();
             PtrVar mthis = new PtrVar(Mthis);
             /*if (Mthis == M){
@@ -192,7 +192,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
             if (!preprocess.CG.contains(m)) {
                 logger.info("Process call. Stmt: {}", stmt);
                 preprocess.CG.add(m);
-                preprocess.Debug(logger);
+                //preprocess.Debug(logger);
                 AddReachable(preprocess, M);
 
                 List<Var> a = stmt.getInvokeExp().getArgs();
