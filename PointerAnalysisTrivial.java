@@ -5,6 +5,7 @@ import java.io.*;
 import java.util.TreeSet;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,19 +15,26 @@ import com.fasterxml.jackson.databind.JsonSerializable.Base;
 import pascal.taie.World;
 import pascal.taie.analysis.ProgramAnalysis;
 import pascal.taie.analysis.misc.IRDumper;
+import pascal.taie.analysis.pta.core.solver.Solver;
 import pascal.taie.config.AnalysisConfig;
 import pascal.taie.ir.IR;
+import pascal.taie.ir.exp.LValue;
 import pascal.taie.ir.exp.Var;
+import pascal.taie.ir.proginfo.MethodRef;
+import pascal.taie.ir.stmt.Invoke;
 import pascal.taie.ir.stmt.LoadField;
 import pascal.taie.ir.stmt.StoreField;
 import pascal.taie.language.classes.JField;
 import pascal.taie.language.classes.JMethod;
+import pascal.taie.language.classes.Subsignature;
+import pascal.taie.language.type.Type;
+import pascal.taie.util.AnalysisException;
 
 
 public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResult> {
     public static final String ID = "pku-pta-trivial";
 
-    private static final Logger logger = LogManager.getLogger(IRDumper.class);
+    public static final Logger logger = LogManager.getLogger(IRDumper.class);
 
     /**
      * Directory to dump Result.
@@ -59,7 +67,9 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
         preprocess.test_pts.forEach((test_id, pt)->{
             result.put(test_id, objs);
         });*/
+        preprocess.Debug(logger);
         AddReachable(preprocess, main);
+        preprocess.Debug(logger);
 
         while (!preprocess.WL.isEmpty()) 
         {    
@@ -81,23 +91,35 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                     {
                         Var x = ((PtrVar)n).v;
                         x.getStoreFields().forEach(stmt->{ //x.f = y
-                            JField field = stmt.getFieldRef().resolve();
-                            PtrVar right = new PtrVar(stmt.getRValue());
-                            FieldRefVar fieldvar = new FieldRefVar(x, field, obj);
-                            preprocess.AddEdge(right, fieldvar);
+                            if (preprocess.S.contains(stmt)){
+                                JField field = stmt.getFieldRef().resolve();
+                                PtrVar right = new PtrVar(stmt.getRValue());
+                                FieldRefVar fieldvar = new FieldRefVar(x, field, obj);
+                                preprocess.AddEdge(right, fieldvar);
+                            }
                         });
                         x.getLoadFields().forEach(stmt->{ //y = x.f
-                            JField field = stmt.getFieldRef().resolve();
-                            PtrVar left = new PtrVar(stmt.getLValue());
-                            FieldRefVar fieldvar = new FieldRefVar(x, field, obj);
-                            preprocess.AddEdge(fieldvar, left);
+                            if (preprocess.S.contains(stmt)){
+                                JField field = stmt.getFieldRef().resolve();
+                                PtrVar left = new PtrVar(stmt.getLValue());
+                                FieldRefVar fieldvar = new FieldRefVar(x, field, obj);
+                                preprocess.AddEdge(fieldvar, left);
+                            }
                         });
-                        ProcessCall(preprocess, x, obj);
+                        ProcessCall(preprocess, (PtrVar)n, obj);
                     }
                 }
                 break;
             }
         }
+
+        preprocess.test_pts.forEach((test_id, pt)->{
+            PtrVar ptptr = new PtrVar(pt);
+            result.put(test_id, new TreeSet<Integer>());
+            preprocess.PT.get(ptptr).forEach(i->{
+                result.get(test_id).add(i);
+            });
+        });
 
         dump(result);
 
@@ -126,19 +148,60 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
         }
     }
 
-    protected void ProcessCall(PreprocessResult preprocess, Var x, Integer obj)
+    protected void ProcessCall(PreprocessResult preprocess, BaseVar n, Integer obj)
     {
+        Var x = n.v;
         x.getInvokes().forEach(stmt->{
-            
+            JMethod Mthis = stmt.getMethodRef().resolve();
+            JMethod M = preprocess.resolveCallee(((PtrVar)n).ty, stmt);
+            logger.info("Type: {}", ((PtrVar)n).ty);
+            logger.info("Mthis: {}", Mthis);
+            logger.info("M: {}", M);
+            logger.info("Var: {}, Integ: {}", n, obj);
+            //Is M == Mthis? Hope not.
+            /*if (Mthis == M){
+                logger.info("Wrong!");
+            }*/
+            MethodRefVar m = new MethodRefVar(x, M, obj, stmt.getLineNumber());
+            MethodRefVar mthis = new MethodRefVar(x, Mthis, obj, 0);
+            if (!preprocess.WL.containsKey(mthis)){
+                preprocess.WL.put(mthis, new HashSet<Integer>());
+            }
+            preprocess.WL.get(mthis).add(obj);
+
+            if (!preprocess.CG.contains(m)){
+                preprocess.CG.add(m);
+                AddReachable(preprocess, M);
+
+                List<Var> a = Mthis.getIR().getParams();
+                List<Var> p = M.getIR().getParams();
+                Integer length = a.size();
+
+                for(int i=0; i<length; i++){
+                    PtrVar aptr = new PtrVar(a.get(i));
+                    PtrVar pptr = new PtrVar(p.get(i));
+                    preprocess.AddEdge(aptr, pptr);
+                }
+
+                Var r = stmt.getLValue();
+                if (r != null){
+                    M.getIR().getReturnVars().forEach(mret->{
+                        PtrVar rptr = new PtrVar(r);
+                        PtrVar mretptr = new PtrVar(mret);
+                        preprocess.AddEdge(rptr, mretptr);
+                    });
+                }
+            }
+            preprocess.Debug(logger);
         });
     }
 
-    protected void dump(PointerAnalysisResult result) {
+    protected void dump(PointerAnalysisResult result) 
+    {
         try (PrintStream out = new PrintStream(new FileOutputStream(dumpPath))) {
             out.println(result);
         } catch (FileNotFoundException e) {
             logger.warn("Failed to dump", e);
         }
     }
-
 }

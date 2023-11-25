@@ -6,6 +6,7 @@ import pascal.taie.ir.exp.Var;
 import pascal.taie.language.classes.JClass;
 import pascal.taie.language.classes.JField;
 import pascal.taie.language.classes.JMethod;
+import pascal.taie.language.type.Type;
 
 class BaseVar{
 	public Var v;
@@ -39,14 +40,26 @@ class BaseVar{
 	}
 
     public int hashCode() {
-		return hash;
+		return type;
     }
 }
 
 class PtrVar extends BaseVar{
+	Type ty;
+
 	PtrVar(Var a) {
 		super(a, 0);
 	};
+
+	PtrVar(Var a, Type x) {
+		super(a, 0);
+		ty = x;
+	};
+
+	@Override
+	public String toString(){
+		return v.toString();
+	}
 }
 
 class FieldRefVar extends BaseVar{
@@ -66,22 +79,37 @@ class FieldRefVar extends BaseVar{
 		}
 		return false;
 	}
+
+	@Override
+	public String toString(){
+		return v.toString() + o.toString() + '.' + field.toString();
+	}
 }
 
 class MethodRefVar extends BaseVar{
 	public JMethod method;
 	public Integer o;
-	MethodRefVar(Var a) {
+	public Integer line;
+	MethodRefVar(Var a, JMethod m, Integer i, Integer l) {
 		super(a, 2);
+		method = m;
+		o = i;
+		line = l;
 	};
 
 	@Override
 	public boolean equals(Object obj) {
 		if(super.equals(obj)){
 			if (((MethodRefVar)obj).method == method &&
-				((MethodRefVar)obj).o == o) return true;
+				((MethodRefVar)obj).o == o &&
+				((MethodRefVar)obj).line == line) return true;
 		}
 		return false;
+	}
+
+	@Override
+	public String toString(){
+		return v.toString() + o.toString() + '.' + method.toString();
 	}
 }
 
@@ -103,6 +131,11 @@ class StaticFieldRefVar extends BaseVar{
 		}
 		return false;
 	}
+
+	@Override
+	public String toString(){
+		return cls.toString() + '.' + field.toString();
+	}
 }
 
 class StaticMethodRefVar extends BaseVar{
@@ -122,5 +155,10 @@ class StaticMethodRefVar extends BaseVar{
 				((StaticMethodRefVar)obj).cls == cls) return true;
 		}
 		return false;
+	}
+
+	@Override
+	public String toString(){
+		return cls.toString() + '.' + method.toString();
 	}
 }
