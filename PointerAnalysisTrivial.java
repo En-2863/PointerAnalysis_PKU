@@ -68,7 +68,34 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
             result.put(test_id, objs);
         });*/
         preprocess.Debug(logger);
-        AddReachable(preprocess, main);
+        try {
+            Entry(preprocess, main);
+
+            //preprocess.Debug(logger);
+            preprocess.test_pts.forEach((test_id, pt)->{
+                PtrVar ptptr = new PtrVar(pt);
+                result.put(test_id, new TreeSet<Integer>());
+                preprocess.PT.get(ptptr).forEach(i->{
+                    if (preprocess.OBJ.containsKey(i)) result.get(test_id).add(preprocess.OBJ.get(i));
+                });
+            });
+        }
+        catch (RuntimeException e){
+            var objs = new TreeSet<>(preprocess.obj_ids.values());
+
+            preprocess.test_pts.forEach((test_id, pt)->{
+                result.put(test_id, objs);
+            });
+        }
+
+        dump(result);
+
+        return result;
+    }
+
+    protected void Entry(PreprocessResult preprocess, JMethod mainmethod)
+    {
+        AddReachable(preprocess, mainmethod);
         //preprocess.Debug(logger);
 
         while (!preprocess.WL.isEmpty()) 
@@ -132,19 +159,6 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                 break;
             }
         }
-
-        preprocess.Debug(logger);
-        preprocess.test_pts.forEach((test_id, pt)->{
-            PtrVar ptptr = new PtrVar(pt);
-            result.put(test_id, new TreeSet<Integer>());
-            preprocess.PT.get(ptptr).forEach(i->{
-                if (preprocess.OBJ.containsKey(i)) result.get(test_id).add(preprocess.OBJ.get(i));
-            });
-        });
-
-        dump(result);
-
-        return result;
     }
 
     protected void AddReachable(PreprocessResult preprocess, JMethod method)
