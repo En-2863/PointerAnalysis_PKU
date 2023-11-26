@@ -67,7 +67,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
         preprocess.test_pts.forEach((test_id, pt)->{
             result.put(test_id, objs);
         });*/
-        //preprocess.Debug(logger);
+        preprocess.Debug(logger);
         AddReachable(preprocess, main);
         //preprocess.Debug(logger);
 
@@ -91,9 +91,9 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                     for (Integer obj : delta)
                     {
                         Var x = ((PtrVar)n).v;
-                        //logger.info("Processing obj: {}", obj);
+                        logger.info("Processing obj: {}", obj);
                         x.getStoreFields().forEach(stmt->{ //x.f = y
-                            //logger.info("Stmt: {}", stmt);
+                            logger.info("Stmt: {}", stmt);
                             if (preprocess.S.contains(stmt)){
                                 JField field = stmt.getFieldRef().resolve();
                                 PtrVar right = new PtrVar(stmt.getRValue());
@@ -133,7 +133,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
             }
         }
 
-        //preprocess.Debug(logger);
+        preprocess.Debug(logger);
         preprocess.test_pts.forEach((test_id, pt)->{
             PtrVar ptptr = new PtrVar(pt);
             result.put(test_id, new TreeSet<Integer>());
@@ -174,8 +174,8 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
     {
         Var x = n.v;
         x.getInvokes().forEach(stmt->{
-            //JMethod M = preprocess.resolveCallee(preprocess.OBJ.get(obj), stmt);
-            JMethod M = stmt.getMethodRef().resolve();
+            JMethod M = preprocess.resolveCallee(preprocess.OBJTYPE.get(obj), stmt);
+            //JMethod M = stmt.getMethodRef().resolve();
             Var Mthis = M.getIR().getThis();
             PtrVar mthis = new PtrVar(Mthis);
             /*if (Mthis == M){
@@ -238,7 +238,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                     M.getIR().getReturnVars().forEach(mret->{
                         PtrVar rptr = new PtrVar(r);
                         PtrVar mretptr = new PtrVar(mret);
-                        preprocess.AddEdge(rptr, mretptr);
+                        preprocess.AddEdge(mretptr, rptr);
                     });
                 }
             }
