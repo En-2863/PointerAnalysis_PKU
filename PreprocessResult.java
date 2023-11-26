@@ -30,10 +30,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.HashSet;
+import java.util.List;
 
 public class PreprocessResult {
 
-    public Logger logger;
+    //public Logger logger;
 
     public final Map<New, Integer> obj_ids;
     public final Map<Integer, Var> test_pts;
@@ -42,7 +43,7 @@ public class PreprocessResult {
     public final Set<BaseVar> CG;
     public final Map<BaseVar, Set<Integer>> WL;
     public final Map<BaseVar, Set<Integer>> PT;
-    public final Map<Integer, Type> OBJ;
+    public final Map<Integer, Integer> OBJ;
     public final Set<JMethod> RM;
     public final Set<Stmt> S;
 
@@ -58,7 +59,7 @@ public class PreprocessResult {
         CG = new HashSet<BaseVar>();
         WL = new HashMap<BaseVar, Set<Integer>>();
         PT = new HashMap<BaseVar, Set<Integer>>();
-        OBJ = new HashMap<Integer, Type>();
+        OBJ = new HashMap<Integer, Integer>();
         RM = new HashSet<JMethod>();
         S = new HashSet<Stmt>();
     }
@@ -146,25 +147,25 @@ public class PreprocessResult {
                             this.test(test_id, pt);
                         }
                     }
+                    else{
+                        ProcessCallStatic((Invoke)stmt);
+                    }
                 }
             }
             else if(stmt instanceof New)
             {
-                if(id!=0){ // ignore unlabeled `new` stmts
-                    this.alloc((New)stmt, id);
-                    OBJ.put(id, ((New)stmt).getRValue().getType()); // Very Important
-                    
-                    Newcnt++;
-                }
-
                 LValue Left = stmt.getDef().get();
-                
                 if (Left instanceof Var){
                     PtrVar lbase = new PtrVar((Var)Left);
                     if (!WL.containsKey(lbase)) {
                         WL.put(lbase, new HashSet<Integer>());
                     }
-                    WL.get(lbase).add(id);
+                    WL.get(lbase).add(Newcnt);
+                    Newcnt++;
+                }
+                if(id!=0){ // ignore unlabeled `new` stmts
+                    this.alloc((New)stmt, id);
+                    OBJ.put(Newcnt - 1, id); // Very Important
                 }
             }
             else if(stmt instanceof Copy)
@@ -173,7 +174,7 @@ public class PreprocessResult {
                 stmt.getUses().forEach(Right->{
                     PtrVar lbase = new PtrVar((Var)Left);
                     PtrVar rbase = new PtrVar((Var)Right);
-                    logger.info("Copy: {} = {}", Left, Right);
+                    //logger.info("Copy: {} = {}", Left, Right);
                     AddEdge(rbase, lbase);
                 });
                 Copycnt++;
@@ -186,19 +187,19 @@ public class PreprocessResult {
                     JField RIghtField = Right.resolve();
                     StaticFieldRefVar RightVar = new StaticFieldRefVar(RIghtField, RightClass);
                     PtrVar LeftVar = new PtrVar(((LoadField)stmt).getLValue());
-                    logger.info("LoadField: {} = {}", LeftVar, RightVar);
+                    //logger.info("LoadField: {} = {}", LeftVar, RightVar);
                     AddEdge(RightVar, LeftVar);
                 }
             }
             else if(stmt instanceof StoreField) // x.f = y
             {
                 if (((StoreField)stmt).isStatic()){
-                    FieldRef Left = ((LoadField)stmt).getFieldAccess().getFieldRef();
+                    FieldRef Left = ((StoreField)stmt).getFieldAccess().getFieldRef();
                     JClass LeftClass = Left.getDeclaringClass();
                     JField LeftField = Left.resolve();
                     StaticFieldRefVar LeftVar = new StaticFieldRefVar(LeftField, LeftClass);
                     PtrVar RightVar = new PtrVar(((StoreField)stmt).getRValue());
-                    logger.info("StoreField: {} = {}", LeftVar, RightVar);
+                    //logger.info("StoreField: {} = {}", LeftVar, RightVar);
                     AddEdge(RightVar, LeftVar);
                 }
             }
@@ -221,7 +222,7 @@ public class PreprocessResult {
         }
     }
 
-    // From Nju expreiment source code.
+    /*// From Nju expreiment source code.
     public JMethod resolveCallee(Type type, Invoke callSite) {
         MethodRef methodRef = callSite.getMethodRef();
         if (callSite.isInterface() || callSite.isVirtual()) {
@@ -235,9 +236,45 @@ public class PreprocessResult {
         } else {
             throw new AnalysisException("Cannot resolve Invoke: " + callSite);
         }
+    }*/
+
+    public void ProcessCallStatic(Invoke stmt)
+    {
+        JMethod M = stmt.getMethodRef().resolve();
+        //logger.info("M: {}", M);
+        MethodRefVar m = new MethodRefVar(M, stmt.getLineNumber());
+
+        if (!CG.contains(m)) {
+            //logger.info("Process call. Stmt: {}", stmt);
+            CG.add(m);
+            analysis(M.getIR());
+
+            List<Var> a = stmt.getInvokeExp().getArgs();
+            List<Var> p = M.getIR().getParams();
+            Integer length = a.size();
+            //logger.info("Param size: {}", length);
+
+            for(int i=0; i<length; i++){
+                Var ai = a.get(i);
+                Var pi = p.get(i);
+                PtrVar aptr = new PtrVar(ai);
+                PtrVar pptr = new PtrVar(pi);
+                //logger.info("Param from a: {}", aptr);
+                //logger.info("Param from p: {}", pptr);
+                AddEdge(aptr, pptr);
+            }
+            Var r = stmt.getLValue();
+            if (r != null) {
+                M.getIR().getReturnVars().forEach(mret->{
+                    PtrVar rptr = new PtrVar(r);
+                    PtrVar mretptr = new PtrVar(mret);
+                    AddEdge(rptr, mretptr);
+                });
+            }
+        }
     }
 
-    public void Debug(Logger log)
+    /*public void Debug(Logger log)
     {
         if (logger == null) logger = log;
         //logger.info("HereCnt: {}", Herecnt);
@@ -264,5 +301,5 @@ public class PreprocessResult {
             });
         });
         logger.info("=======================");
-    }
+    }*/
 }

@@ -67,9 +67,9 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
         preprocess.test_pts.forEach((test_id, pt)->{
             result.put(test_id, objs);
         });*/
-        preprocess.Debug(logger);
+        //preprocess.Debug(logger);
         AddReachable(preprocess, main);
-        preprocess.Debug(logger);
+        //preprocess.Debug(logger);
 
         while (!preprocess.WL.isEmpty()) 
         {    
@@ -91,11 +91,10 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                     for (Integer obj : delta)
                     {
                         Var x = ((PtrVar)n).v;
-                        logger.info("Processing obj: {}", obj);
+                        //logger.info("Processing obj: {}", obj);
                         x.getStoreFields().forEach(stmt->{ //x.f = y
-                            logger.info("Stmt: {}", stmt);
+                            //logger.info("Stmt: {}", stmt);
                             if (preprocess.S.contains(stmt)){
-                                logger.info("Contains.");
                                 JField field = stmt.getFieldRef().resolve();
                                 PtrVar right = new PtrVar(stmt.getRValue());
                                 FieldRefVar fieldvar = new FieldRefVar(field, obj);
@@ -105,11 +104,26 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                         x.getLoadFields().forEach(stmt->{ //y = x.f
                             logger.info("Stmt: {}", stmt);
                             if (preprocess.S.contains(stmt)){
-                                logger.info("Contains.");
                                 JField field = stmt.getFieldRef().resolve();
                                 PtrVar left = new PtrVar(stmt.getLValue());
                                 FieldRefVar fieldvar = new FieldRefVar(field, obj);
                                 preprocess.AddEdge(fieldvar, left);
+                            }
+                        });
+                        x.getLoadArrays().forEach(stmt->{
+                            logger.info("Stmt Array: {}", stmt);
+                            if (preprocess.S.contains(stmt)){
+                                PtrVar left = new PtrVar(stmt.getLValue());
+                                ArrayRefVar arrayvar = new ArrayRefVar(obj);
+                                preprocess.AddEdge(arrayvar, left);
+                            }
+                        });
+                        x.getStoreArrays().forEach(stmt->{
+                            logger.info("Stmt Array: {}", stmt);
+                            if (preprocess.S.contains(stmt)){
+                                PtrVar right = new PtrVar(stmt.getRValue());
+                                ArrayRefVar arrayvar = new ArrayRefVar(obj);
+                                preprocess.AddEdge(right, arrayvar);
                             }
                         });
                         ProcessCall(preprocess, (PtrVar)n, obj);
@@ -124,7 +138,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
             PtrVar ptptr = new PtrVar(pt);
             result.put(test_id, new TreeSet<Integer>());
             preprocess.PT.get(ptptr).forEach(i->{
-                if (preprocess.obj_ids.values().contains(i)) result.get(test_id).add(i);
+                if (preprocess.OBJ.containsKey(i)) result.get(test_id).add(preprocess.OBJ.get(i));
             });
         });
 
@@ -135,6 +149,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
 
     protected void AddReachable(PreprocessResult preprocess, JMethod method)
     {
+        logger.info("@{}@", method.getIR().getVars());
         preprocess.analysis(method.getIR());
     }
 
@@ -167,10 +182,10 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                 logger.info("warning!");
             }*/
             //if (stmt.isVirtual()){
-                logger.info("Type: {}", (preprocess.OBJ.get(obj)));
-                logger.info("Mthis: {}", Mthis);
-                logger.info("M: {}", M);
-                logger.info("Var: {}, Integ: {}", n, obj);
+                //logger.info("Type: {}", (preprocess.OBJ.get(obj)));
+                //logger.info("Mthis: {}", Mthis);
+                //logger.info("M: {}", M);
+                //logger.info("Var: {}, Integ: {}", n, obj);
             //}
             MethodRefVar m = new MethodRefVar(M, stmt.getLineNumber());
             
@@ -178,7 +193,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                 preprocess.WL.put(mthis, new HashSet<Integer>());
             }
             preprocess.WL.get(mthis).add(obj);
-            logger.info("mthis: {}", mthis);
+            //logger.info("mthis: {}", mthis);
 
             /*//Testing
             Mthis.getStoreFields().forEach(fieldstmt->{
@@ -190,7 +205,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
             });*/
 
             if (!preprocess.CG.contains(m)) {
-                logger.info("Process call. Stmt: {}", stmt);
+                //logger.info("Process call. Stmt: {}", stmt);
                 preprocess.CG.add(m);
                 //preprocess.Debug(logger);
                 AddReachable(preprocess, M);
@@ -198,15 +213,15 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                 List<Var> a = stmt.getInvokeExp().getArgs();
                 List<Var> p = M.getIR().getParams();
                 Integer length = a.size();
-                logger.info("Param size: {}", length);
+                //logger.info("Param size: {}", length);
 
                 for(int i=0; i<length; i++){
                     Var ai = a.get(i);
                     Var pi = p.get(i);
                     PtrVar aptr = new PtrVar(ai);
                     PtrVar pptr = new PtrVar(pi);
-                    logger.info("Param from a: {}", aptr);
-                    logger.info("Param from p: {}", pptr);
+                    //logger.info("Param from a: {}", aptr);
+                    //logger.info("Param from p: {}", pptr);
                     preprocess.AddEdge(aptr, pptr);
 
                     /*pi.getStoreFields().forEach(fieldstmt->{
@@ -228,7 +243,7 @@ public class PointerAnalysisTrivial extends ProgramAnalysis<PointerAnalysisResul
                 }
             }
             //if (stmt.isVirtual()) 
-            preprocess.Debug(logger);
+            //preprocess.Debug(logger);
         });
     }
 

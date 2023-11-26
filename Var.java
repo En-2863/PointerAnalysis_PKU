@@ -153,3 +153,19 @@ class StaticMethodRefVar extends BaseVar{
 		return cls.toString() + '.' + method.toString();
 	}
 }
+
+class ArrayRefVar extends BaseVar{
+	Integer object;
+	ArrayRefVar(Integer o){
+		super(5);
+		object = o;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if(super.equals(obj)){
+			if (((ArrayRefVar)obj).object == object) return true;
+		}
+		return false;
+	}
+}
